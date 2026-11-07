@@ -169,12 +169,13 @@ def routing_problem(error: ClientError, ors, request: TripRequest) -> PlanProble
     if isinstance(error, TripTooLong):
         return PlanProblem(
             "trip_too_long",
-            "This trip is too long for the free routing service (about 3,700 mi at most).",
+            "This trip is too long for the free routing service (about 3,700 mi at most), "
+            "or it crosses the sea, where there's no truck route.",
             [
                 {
                     "type": "edit_field",
                     "field": "destination",
-                    "label": "Plan it in two legs: pick a city about halfway",
+                    "label": "Pick a closer destination, or plan it in two legs",
                 }
             ],
         )
