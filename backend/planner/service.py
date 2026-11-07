@@ -50,7 +50,7 @@ class TripRequest:
 
     origin: Point
     destination: Point
-    departure_local: datetime  # no time zone: it's the origin's local time (#7)
+    departure_local: datetime | None  # origin's local time, no zone (#7); None = now
     load_lb: float  # cargo load, already in lb (#2, #33)
     interval_mi: float = 25  # #1
     origin_label: str = ""
@@ -296,7 +296,10 @@ def plan_trip(request: TripRequest, ors, weather, now: datetime | None = None) -
         )
     tz_name = get_tz(request.origin[1], request.origin[0]) or "UTC"  # #8: offline lookup
     tz = ZoneInfo(tz_name)
-    departure = int(request.departure_local.replace(tzinfo=tz).timestamp())  # #7, #9
+    if request.departure_local is None:  # #10: "leave now", at the origin
+        departure = int(now_unix)
+    else:
+        departure = int(request.departure_local.replace(tzinfo=tz).timestamp())  # #7, #9
     if departure < now_unix - DEPARTURE_GRACE_S:
         raise PlanProblem(
             "departure_passed",

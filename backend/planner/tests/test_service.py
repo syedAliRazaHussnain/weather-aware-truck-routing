@@ -28,7 +28,7 @@ def trip(
     return TripRequest(
         origin=origin,
         destination=destination,
-        departure_local=datetime.fromisoformat(departure),
+        departure_local=datetime.fromisoformat(departure) if departure else None,
         load_lb=load_lb,
         interval_mi=interval_mi,
     )
@@ -164,6 +164,11 @@ def test_a_departure_more_than_an_hour_ago_offers_leave_now():
     assert problem.actions == [
         {"type": "set_departure", "value": "2026-11-07T05:00", "label": "Leave now"}
     ]
+
+
+def test_no_departure_means_leave_now_at_the_origin():
+    """#10: 'Leave now' is now in the origin's zone, whatever the browser's clock says."""
+    assert plan(trip(departure=None))["departure"] == "2026-11-07T05:00-07:00"
 
 
 def test_a_departure_less_than_an_hour_ago_is_accepted():

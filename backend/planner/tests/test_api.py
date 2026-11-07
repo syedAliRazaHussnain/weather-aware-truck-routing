@@ -117,6 +117,15 @@ def test_out_of_range_values_are_refused(api, fake_clients, field, value):
     assert field in response.json()["fields"]
 
 
+def test_departure_is_optional_and_means_now(api, fake_clients, fixed_now):
+    """#10: the form's default 'Leave now' sends no departure."""
+    fake_clients()
+    trip = {k: v for k, v in GOOD_TRIP.items() if k != "departure"}
+    response = api.post("/api/plan", trip, format="json")
+    assert response.status_code == 200
+    assert response.json()["departure"].startswith("2030-01-01T05:00")
+
+
 def test_interval_defaults_to_25_miles(api, fake_clients, fixed_now):
     """#1: the toggle is optional."""
     fake_clients()
