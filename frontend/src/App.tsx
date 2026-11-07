@@ -19,6 +19,7 @@ import {
   remainingErrors,
   toPlanRequest,
 } from './lib/form'
+import { START_VIEW } from './lib/map'
 
 export default function App() {
   const [form, setForm] = useState<Form>(EMPTY_FORM)
@@ -26,7 +27,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<RouteResult['id'] | null>(null)
   const [hour, setHour] = useState(0)
   const [openCheckpoint, setOpenCheckpoint] = useState<number | null>(null)
-  const [center, setCenter] = useState<{ lat: number; lon: number }>()
+  const [autoRetryUsed, setAutoRetryUsed] = useState(false) // one automatic retry in a row
+  const [center, setCenter] = useState({ lat: START_VIEW.latitude, lon: START_VIEW.longitude })
   const { plan, problem, loading, slow, run } = usePlan()
 
   const fieldRefs: Record<FormField, React.RefObject<HTMLInputElement | null>> = {
@@ -87,14 +89,24 @@ export default function App() {
             setForm(next)
             setErrors((previous) => remainingErrors(previous, next))
           }}
-          onSubmit={() => submit(form)}
+          onSubmit={() => {
+            setAutoRetryUsed(false)
+            submit(form)
+          }}
         />
         {loading && (
           <p className="status" role="status">
             {slow ? 'Waking up the server, this takes up to a minute the first time…' : 'Planning your trip…'}
           </p>
         )}
-        {problem && <ProblemPanel problem={problem} onAction={onAction} />}
+        {problem && (
+          <ProblemPanel
+            problem={problem}
+            onAction={onAction}
+            autoRetry={!autoRetryUsed}
+            onAutoRetry={() => setAutoRetryUsed(true)}
+          />
+        )}
         {plan && (
           <ResultsPanel
             plan={plan}
@@ -102,6 +114,10 @@ export default function App() {
             onSelect={(id) => {
               setSelectedId(id)
               setOpenCheckpoint(null)
+              // On a phone the map is above the cards: show the route that was picked.
+              if (window.matchMedia('(max-width: 800px)').matches) {
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }
             }}
             onAction={onAction}
           />
