@@ -31,8 +31,8 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 |---|---|---|---|
 | 12 | Routing provider | OpenRouteService `driving-hgv` (truck profile). | decided |
 | 13 | Truck weight | Driver enters load only. Gross weight = load + **35,000 lb** assumed empty tractor-trailer, sent to ORS so it can avoid weight-restricted roads. Weight-limit data comes from OpenStreetMap and coverage varies. | decided |
-| 14 | Alternatives | ORS's free API only returns alternatives under 100 km. For longer trips, routes 2 and 3 are forced through detour points pushed left/right of the trip midpoint (15%, then 25%, 35% of trip length). | decided |
-| 15 | Distinct routes | A candidate is dropped if most of it overlaps an existing route, or if it takes more than 1.5x the fastest route's time. If fewer than 3 distinct routes exist, the app shows fewer and says so. | decided |
+| 14 | Alternatives | ORS's free API only returns alternatives under 100 km. For longer trips, routes 2 and 3 are forced through detour points beside the trip midpoint, tried in this order: 15% of the trip length to the left, then right, then 25% left/right, then 35% left/right. It stops as soon as two good alternatives are found, so a trip costs at most 6 extra routing calls. A detour point with no truck road nearby is skipped. | decided |
+| 15 | Distinct routes | A candidate is dropped if 80% or more of its length runs within 1 mi of a route already chosen (compared every 0.25 mi along both), or if it takes more than 1.5x the fastest route's time (exactly 1.5x is kept). If fewer than 3 distinct routes exist, the app shows fewer and says so. | decided |
 
 ## Distance, checkpoints and ETAs
 
