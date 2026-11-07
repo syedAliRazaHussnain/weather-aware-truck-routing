@@ -1,0 +1,2 @@
+# Runtime dependencies for the backend. Pinned so CI and hosting match local.
+requests==2.32.3

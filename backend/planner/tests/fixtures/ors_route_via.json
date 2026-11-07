@@ -1,0 +1,113 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "bbox": [
+    -105.0,
+    39.7,
+    -104.8,
+    39.9
+   ],
+   "type": "Feature",
+   "properties": {
+    "segments": [
+     {
+      "distance": 10.0,
+      "duration": 600.0,
+      "steps": [
+       {
+        "distance": 10.0,
+        "duration": 600.0,
+        "type": 11,
+        "instruction": "Head north on Main Street",
+        "name": "Main Street",
+        "way_points": [
+         0,
+         2
+        ]
+       },
+       {
+        "distance": 0.0,
+        "duration": 0.0,
+        "type": 10,
+        "instruction": "Arrive at your destination",
+        "name": "-",
+        "way_points": [
+         2,
+         2
+        ]
+       }
+      ]
+     },
+     {
+      "distance": 7.0,
+      "duration": 420.0,
+      "steps": [
+       {
+        "distance": 7.0,
+        "duration": 420.0,
+        "type": 11,
+        "instruction": "Head east on I-70",
+        "name": "I-70",
+        "way_points": [
+         2,
+         3
+        ]
+       },
+       {
+        "distance": 0.0,
+        "duration": 0.0,
+        "type": 10,
+        "instruction": "Arrive at your destination",
+        "name": "-",
+        "way_points": [
+         3,
+         3
+        ]
+       }
+      ]
+     }
+    ],
+    "way_points": [
+     0,
+     2,
+     3
+    ],
+    "summary": {
+     "distance": 17.0,
+     "duration": 1020.0
+    }
+   },
+   "geometry": {
+    "coordinates": [
+     [
+      -105.0,
+      39.7
+     ],
+     [
+      -105.0,
+      39.8
+     ],
+     [
+      -105.0,
+      39.9
+     ],
+     [
+      -104.8,
+      39.9
+     ]
+    ],
+    "type": "LineString"
+   }
+  }
+ ],
+ "bbox": [
+  -105.0,
+  39.7,
+  -104.8,
+  39.9
+ ],
+ "metadata": {
+  "service": "routing"
+ }
+}
