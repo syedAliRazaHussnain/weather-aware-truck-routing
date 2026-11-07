@@ -70,7 +70,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 30 | Shared band edges | Where two bands share an edge, the **higher** band wins (safer). E.g. rain 0.25 = High, 0.50 = Severe; snow 1.0 = High. | decided |
 | 31 | Wind between whole numbers | The wind bands are written in whole mph (25–34, 35–44, 45–54), which leaves gaps like 34.5. They're read as continuous ranges, matching the "<25" and "≥55" at the ends: 25–34 means 25 up to but not including 35. So 34.9 mph is Moderate and 54.9 mph is Severe. The same applies to the load rules' "45–54" and "35–44". | decided |
 | 32 | No Travel edges | Rain and snow No Travel are strictly greater than the top Severe value (rain >1.00, snow >3.0), as written in the table. | decided |
-| 33 | Load rules | "> 30,000 lb" and "> 40,000 lb" mean strictly more than. The 30,000 lb rule only applies in the 45–54 mph band. | decided |
+| 33 | Load rules | "> 30,000 lb" and "> 40,000 lb" mean strictly more than. The 30,000 lb rule only applies in the 45–54 mph band, the 40,000 lb rule only in 35–44. "lb" means the cargo load the driver enters (converted from kg if needed, #2), not the gross weight: the +35,000 lb empty truck in #13 is only sent to ORS for road weight limits. | decided |
 | 34 | Checkpoint risk | The worst of wind, rain and snow. | decided |
 
 ## Weather fetching and limits
