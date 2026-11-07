@@ -9,18 +9,18 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | # | Topic | Assumption | Status |
 |---|---|---|---|
 | 1 | Sampling interval | The spec says "sample weather every 10 / 25 / 50 miles" but doesn't list it as a user input. The app offers it as an optional toggle, default **25 mi**. | decided |
-| 2 | Load unit | The driver can enter the load in lb or kg (a small switch next to the box). kg is converted to lb (1 kg = 2.20462 lb) before any rule runs, because the spec's load rules are in lb. | decided |
+| 2 | Load unit | The driver can enter the load in lb or kg (a small switch next to the box). kg is converted to lb (1 kg = 2.20462 lb) before any rule runs, because the spec's load rules are in lb. Loads above 150,000 lb are refused as a likely typo (an extra zero). | decided |
 | 3 | Locations | Worldwide. The risk rules use the spec's US units (mph, in/hr, lb) regardless of country. | decided |
 | 4 | Picking a location | Autocomplete (suggestions ranked near the current map view), click on the map, or "use my location" for the origin. | decided |
 | 5 | Coordinates, not text | `/api/plan` takes coordinates the driver picked (autocomplete, map click or location). It never guesses from free text: if the driver types "Springfield" and presses Plan without choosing, the suggestions open and ask them to pick one, so the trip can't silently go to the wrong Springfield. | decided |
-| 6 | Snapping | Points are snapped to the nearest truck-usable road by the routing API. If there's no road nearby, the user sees a clear error. | decided |
+| 6 | Snapping | Origin and destination are snapped to the nearest truck-usable road within 5 km by the routing API. If there's no road that close, the driver sees a clear message with the nearest town to try instead. | decided |
 
 ## Time and time zones
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
 | 7 | Departure time zone | The departure time is in the **origin's** local time zone (a driver in Denver means 8 AM Denver time, wherever the app is opened). ETAs are shown in that same zone, labelled. | decided |
-| 8 | Origin time zone | The form sends the departure as a plain local time ("2026-11-08 08:00"). The server finds the origin's time zone from its coordinates (offline `timezonefinder` library, no API call) and returns the zone name so the UI can label every ETA (#7). | decided |
+| 8 | Origin time zone | The server finds the origin's time zone from its coordinates with an offline lookup (the `tzfpy` library; no API call). `timezonefinder`, the first choice, doesn't install on Python 3.14. The zone name is returned so the UI can label every ETA (#7). | decided |
 | 9 | Time inside the server | All times are handled in UTC (Open-Meteo `timeformat=unixtime`). Conversion to the origin's local time happens only for display (see #7). | decided |
 | 10 | Departure in the past | Departure can be up to 1 hour in the past (a grace period for filling in the form) and is used as-is. Older than that, the driver sees "That departure time has passed" with a [Leave now] button, which sets the departure to the current time and plans again. Default is "now". | decided |
 | 11 | Forecast window | Weather is fetched from the departure hour to whichever is later: the last ETA or departure + 48 h (the heatmap slider). That whole window must end within Open-Meteo's 16-day forecast, otherwise the user gets a clear error. | decided |
@@ -31,8 +31,9 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 |---|---|---|---|
 | 12 | Routing provider | OpenRouteService `driving-hgv` (truck profile). | decided |
 | 13 | Truck weight | Driver enters load only. Gross weight = load + **35,000 lb** assumed empty tractor-trailer, sent to ORS so it can avoid weight-restricted roads. Weight-limit data comes from OpenStreetMap and coverage varies. | decided |
-| 14 | Alternatives | ORS's free API only returns alternatives under 100 km. For longer trips, routes 2 and 3 are forced through detour points pushed left/right of the trip midpoint (15%, then 25%, 35% of trip length). | decided |
-| 15 | Distinct routes | A candidate is dropped if most of it overlaps an existing route, or if it takes more than 1.5x the fastest route's time. If fewer than 3 distinct routes exist, the app shows fewer and says so. | decided |
+| 14 | Alternatives | ORS's free API only returns alternatives under 100 km. For longer trips, routes 2 and 3 are forced through detour points beside the trip midpoint, tried in this order: 15% of the trip length to the left, then right, then 25% left/right, then 35% left/right. It stops as soon as two good alternatives are found, so a trip costs at most 6 extra routing calls. Detour points snap to a road within 20 km; one with no truck road nearby is skipped. Trips under about 90 km in a straight line first ask ORS for its own alternatives; if ORS refuses, detours are used instead. | decided |
+| 15 | Distinct routes | A candidate is dropped if 80% or more of its length runs within 1 mi of a route already chosen (compared every 0.25 mi along both), or if it takes more than 1.5x the fastest route's time (exactly 1.5x is kept). If fewer than 3 distinct routes exist, the app shows fewer and says so. | decided |
+| 61 | Routing limits | The free routing service refuses trips over about 6,000 km (~3,700 mi), e.g. Lahore to London. The driver is told so and offered to plan it in two legs. A routing timeout or server error is retried once; a rate-limit error is not. | decided |
 
 ## Distance, checkpoints and ETAs
 
@@ -93,7 +94,8 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 43 | "Balancing risk and travel time" | No invented weights (e.g. "1 Severe mile = 6 minutes"); the spec's strict order decides. Time is balanced in three ways: it breaks ties, routes slower than 1.5x the fastest are never candidates (#15), and the UI shows how much slower the recommended route is, so the driver can choose. | decided |
 | 44 | Comparing numbers | Miles are rounded to whole miles and average risk to 2 decimals before comparing, so tiny differences in checkpoint spacing don't decide the winner. | decided |
 | 45 | Every route has No Travel | A route is still recommended (by the rules above), with a clear warning that no route is safe at this departure time, and help: "If you can wait or are resting, check again later" with a one-tap [Check tomorrow 6 AM] that re-plans with that departure. | decided |
-| 46 | Why this route | The recommendation comes with a one-line reason: the first rule that separated it from the next route, e.g. "0 Severe miles vs 50 on Route A; 53 min slower." | decided |
+| 46 | Why this route | The recommendation comes with a one-line reason. If it isn't the fastest route, the reason says why the fastest lost (the first rule that separated them), e.g. "0 Severe miles vs 50 on Route A. 53 min slower than the fastest." If it is the fastest, it says why the runner-up lost. | decided |
+| 60 | Route names | Routes are named A, B, C from fastest to slowest, so "Route A" always means the fastest. When two routes tie on every rule including time, they keep that order. | decided |
 
 ## Heatmap
 
@@ -142,6 +144,7 @@ The app treats a failure as a problem the driver and the app solve together, not
 |---|---|---|
 | Location can't be found (permission off, weak GPS) | "We couldn't get your location." | Type a nearby town or landmark · Turn on location for this site · Try again in a moment (outdoors helps) |
 | Picked point has no truck road nearby | "There's no truck road near this point." | [Use Rawlins, WY (3 mi away)] (nearest place, via ORS reverse geocoding) · Pick another point |
+| Trip over the free routing limit, ~3,700 mi (#61) | "This trip is too long for the free routing service." | Plan it in two legs: pick a city about halfway as the destination |
 | No truck-legal route between the two places | "We couldn't find a truck route between these places." | Check the load weight · Try a nearby destination |
 | Fewer than 3 distinct routes | Not an error. Note: "Only 2 different routes exist for this trip." | — |
 | Too many checkpoints (#37) | "This trip is too long for 10-mile checkpoints on the free weather service." | [Use 25 mi] · [Use 50 mi] |
