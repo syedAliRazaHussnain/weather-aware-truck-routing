@@ -21,6 +21,7 @@ L, M, H, S, NT = Risk.LOW, Risk.MODERATE, Risk.HIGH, Risk.SEVERE, Risk.NO_TRAVEL
 
 # --- Risk levels -------------------------------------------------------------
 
+
 def test_levels_are_ordered_from_low_to_no_travel():
     """Ordering is what lets max() pick the worst condition (#34)."""
     assert L < M < H < S < NT
