@@ -1,0 +1,19 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -107.226483,
+     41.784882
+    ]
+   },
+   "properties": {
+    "label": "Rawlins, WY, USA",
+    "distance": 1.258
+   }
+  }
+ ]
+}

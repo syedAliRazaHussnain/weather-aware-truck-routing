@@ -1,0 +1,33 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -93.28074,
+     37.197274
+    ]
+   },
+   "properties": {
+    "label": "Springfield, MO, USA",
+    "layer": "locality"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -93.29145,
+     37.19431
+    ]
+   },
+   "properties": {
+    "label": "City of Springfield, MO, USA",
+    "layer": "localadmin"
+   }
+  }
+ ]
+}

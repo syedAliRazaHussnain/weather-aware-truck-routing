@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, import order, pyupgrade, bugbear
+select = ["F", "E", "W", "I", "UP", "B"]

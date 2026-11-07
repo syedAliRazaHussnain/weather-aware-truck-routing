@@ -1,0 +1,34 @@
+# Runs the backend tests on every pull request and on pushes to main and dev.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+jobs:
+  backend:
+    name: Backend lint + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14" # same as local development
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint and format check (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Run tests
+        run: python -m pytest -v
