@@ -91,14 +91,17 @@ def format_duration(seconds: float) -> str:
 
 
 def reason(ranked: list[RouteSummary]) -> str:
-    """One line on why the top route won: the first rule that separates it (#46)."""
+    """One line on why the top route won: the first rule that beat the fastest route,
+    or the runner-up when it is the fastest (#46)."""
     best = ranked[0]
+    fastest = min(ranked, key=lambda s: s.seconds)
     if len(ranked) == 1:
         why = "Only route found"
+    elif fastest is not best:
+        why = _deciding_rule(best, fastest)  # the driver's question: why not the fastest?
     else:
         why = _deciding_rule(best, ranked[1])
-    fastest = min(s.seconds for s in ranked)
-    extra = best.seconds - fastest
+    extra = best.seconds - fastest.seconds
     when = "fastest route" if extra < 60 else f"{format_duration(extra)} slower than the fastest"
     return f"{why}. {when[0].upper()}{when[1:]}."
 

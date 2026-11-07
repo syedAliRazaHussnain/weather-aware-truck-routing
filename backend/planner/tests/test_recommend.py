@@ -161,14 +161,22 @@ def test_durations_read_naturally(seconds, text):
     assert format_duration(seconds) == text
 
 
-def test_reason_names_the_rule_that_decided_and_the_extra_time():
-    """#46: the design example. C beat B on average risk, and is 53 min slower than A."""
+def test_reason_explains_why_not_the_fastest_route():
+    """#46: the design example. C is slower than A, so the reason says why A lost:
+    its 50 Severe miles. Then how much slower C is."""
     a = summary("A", 10.2, severe=50, high=25, avg=0.62)
     b = summary("B", 11.67, severe=0, high=75, avg=1.10)
     c = summary("C", 11.083, severe=0, high=75, avg=0.90)
     assert reason(rank([a, b, c])) == (
-        "Lower average risk: 0.90 vs 1.10 on Route B. 53 min slower than the fastest."
+        "0 Severe miles vs 50 on Route A. 53 min slower than the fastest."
     )
+
+
+def test_reason_compares_with_the_runner_up_when_the_winner_is_fastest():
+    """#46: nothing to explain about time, so the reason says why B lost."""
+    a = summary("A", 10, severe=0, avg=0.90)
+    b = summary("B", 11, severe=0, avg=1.10)
+    assert reason(rank([a, b])) == "Lower average risk: 0.90 vs 1.10 on Route B. Fastest route."
 
 
 def test_reason_for_a_severe_mile_win():
