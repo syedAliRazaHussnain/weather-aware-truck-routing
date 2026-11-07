@@ -56,6 +56,10 @@ export function PlaceInput({ label, placeholder, value, onChange, focus, error, 
         aria-controls={listId}
         aria-invalid={Boolean(error)}
         autoComplete="off"
+        autoCorrect="off" // place names aren't dictionary words (iOS would "fix" them)
+        autoCapitalize="words"
+        spellCheck={false}
+        enterKeyHint="search"
         placeholder={placeholder}
         value={text}
         onChange={(event) => {
@@ -64,7 +68,10 @@ export function PlaceInput({ label, placeholder, value, onChange, focus, error, 
           setOpen(true)
           if (value) onChange(null) // typing again means a new place must be picked
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={(event) => {
+          setOpen(true)
+          if (value) event.target.select() // typing replaces a picked place
+        }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={onKeyDown}
       />

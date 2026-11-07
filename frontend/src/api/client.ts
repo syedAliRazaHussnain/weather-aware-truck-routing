@@ -24,6 +24,12 @@ export const OFFLINE: Problem = {
   actions: [{ type: 'retry', label: 'Try again' }],
 }
 
+export const UNREACHABLE: Problem = {
+  error: 'server_unreachable',
+  message: "We couldn't reach the server. Your trip details are kept.",
+  actions: [{ type: 'retry', label: 'Try again' }],
+}
+
 export const UNEXPECTED: Problem = {
   error: 'server_error',
   message: 'Something went wrong on our side. Your trip details are kept.',
@@ -51,7 +57,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw new ApiProblem(OFFLINE, null)
+    throw new ApiProblem(navigator.onLine === false ? OFFLINE : UNREACHABLE, null)
   }
   let body: unknown
   try {
