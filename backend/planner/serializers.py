@@ -25,12 +25,14 @@ class PlanRequestSerializer(serializers.Serializer):
 
     origin = PlaceSerializer()
     destination = PlaceSerializer()
-    departure = serializers.CharField(max_length=32)
+    departure = serializers.CharField(max_length=32, required=False, allow_blank=True, default="")
     load_lb = serializers.FloatField(min_value=0, max_value=MAX_LOAD_LB)
     interval_mi = serializers.ChoiceField(choices=INTERVALS, default=25)
 
-    def validate_departure(self, value: str) -> datetime:
-        """A plain local time like 2026-11-08T08:00, read in the origin's time zone (#7)."""
+    def validate_departure(self, value: str) -> datetime | None:
+        """A plain local time like 2026-11-08T08:00 in the origin's zone (#7); empty = now."""
+        if not value:
+            return None
         try:
             moment = datetime.fromisoformat(value)
         except ValueError:

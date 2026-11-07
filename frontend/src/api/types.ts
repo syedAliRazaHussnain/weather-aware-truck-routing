@@ -13,8 +13,8 @@ export interface Place {
 export interface PlanRequest {
   origin: Place
   destination: Place
-  /** The origin's local time, no zone: "2026-11-08T08:00" (#7). */
-  departure: string
+  /** The origin's local time, no zone: "2026-11-08T08:00" (#7). Omitted = leave now (#10). */
+  departure?: string
   /** Cargo load in lb; kg is converted before sending (#2). */
   load_lb: number
   interval_mi: 10 | 25 | 50
