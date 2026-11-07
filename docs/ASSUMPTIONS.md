@@ -94,6 +94,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 44 | Comparing numbers | Miles are rounded to whole miles and average risk to 2 decimals before comparing, so tiny differences in checkpoint spacing don't decide the winner. | decided |
 | 45 | Every route has No Travel | A route is still recommended (by the rules above), with a clear warning that no route is safe at this departure time, and help: "If you can wait or are resting, check again later" with a one-tap [Check tomorrow 6 AM] that re-plans with that departure. | decided |
 | 46 | Why this route | The recommendation comes with a one-line reason: the first rule that separated it from the next route, e.g. "0 Severe miles vs 50 on Route A; 53 min slower." | decided |
+| 60 | Route names | Routes are named A, B, C from fastest to slowest, so "Route A" always means the fastest. When two routes tie on every rule including time, they keep that order. | decided |
 
 ## Heatmap
 
