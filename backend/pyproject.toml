@@ -5,3 +5,7 @@ target-version = "py312"
 [tool.ruff.lint]
 # pyflakes, pycodestyle, import order, pyupgrade, bugbear
 select = ["F", "E", "W", "I", "UP", "B"]
+
+[tool.vercel]
+# Vercel runs the API as one Python function from this WSGI app.
+entrypoint = "config.wsgi:application"
