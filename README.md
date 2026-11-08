@@ -83,14 +83,19 @@ Open http://localhost:5173.
 | `ORS_API_KEY` | backend | OpenRouteService key. Never sent to the browser. |
 | `DJANGO_SECRET_KEY` | backend | Required unless `DJANGO_DEBUG=true` |
 | `DJANGO_DEBUG` | backend | `true` for local development only |
-| `DJANGO_ALLOWED_HOSTS` | backend | Comma-separated hostnames, e.g. the Render domain |
+| `DJANGO_ALLOWED_HOSTS` | backend | Extra comma-separated hostnames. On Render the service's own domain is added automatically. |
 | `CORS_ALLOWED_ORIGINS` | backend | The frontend's URL, e.g. the Vercel domain |
 | `VITE_API_URL` | frontend | The backend's URL in production; leave empty locally |
+
+### Deploying
+
+- **Backend on Render:** create a Blueprint from this repo; it reads [`render.yaml`](render.yaml) (free plan, `backend/` folder, gunicorn, health check on `/api/health`, deploys from `main` only after the tests pass). Render asks for `ORS_API_KEY` and `CORS_ALLOWED_ORIGINS` (the Vercel URL) and generates `DJANGO_SECRET_KEY` itself.
+- **Frontend on Vercel:** import the repo with root directory `frontend` (Vite is detected) and set `VITE_API_URL` to the Render URL.
 
 ## Tests
 
 ```bash
-cd backend && ruff check . && python -m pytest          # 210 tests
+cd backend && ruff check . && python -m pytest          # 214 tests
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build   # 39 tests
 ```
 

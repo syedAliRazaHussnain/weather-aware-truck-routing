@@ -6,7 +6,7 @@ Two layers: automated tests that run in CI on every pull request, and a manual p
 
 | Part | Tool | What it covers |
 |---|---|---|
-| Backend | pytest (210 tests) | Every band edge in the risk table on both sides, the load rules, road miles and ETAs, checkpoint placement, route alternatives, ranking in the spec's order, the heatmap grid, both API clients against saved real responses (no network), the whole plan with fake services, and the HTTP layer |
+| Backend | pytest (214 tests) | Every band edge in the risk table on both sides, the load rules, road miles and ETAs, checkpoint placement, route alternatives, ranking in the spec's order, the heatmap grid, both API clients against saved real responses (no network), the whole plan with fake services, the HTTP layer, and the production settings |
 | Backend | ruff | Lint and formatting |
 | Frontend | vitest (39 tests) | Form rules, what every problem button does, error clearing, lb/kg, times in the origin's zone (MST vs MDT), the colour palette, the API client's error handling |
 | Frontend | oxlint, `tsc`, `vite build` | Lint, types, production build |
