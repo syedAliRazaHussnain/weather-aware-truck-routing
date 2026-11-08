@@ -91,7 +91,7 @@ Open http://localhost:5173.
 
 Both halves run on Vercel's free (Hobby) plan, as two projects from this one repo:
 
-- **API:** import the repo with root directory `backend`. Vercel detects Django and runs the WSGI app (`config.wsgi:application`, set in `pyproject.toml`) as a Python function on Python 3.14 (`backend/.python-version`). Set `ORS_API_KEY`, `DJANGO_SECRET_KEY` (any long random string) and `CORS_ALLOWED_ORIGINS` (the frontend's URL). The API's own Vercel domains are allowed automatically.
+- **API:** import the repo with root directory `backend`. Vercel detects Django from `manage.py`, installs `requirements.txt` and runs the WSGI app (`config.wsgi.application`) as a Python function on Python 3.14 (`backend/.python-version`). Set `ORS_API_KEY`, `DJANGO_SECRET_KEY` (any long random string) and `CORS_ALLOWED_ORIGINS` (the frontend's URL). The API's own Vercel domains are allowed automatically.
 - **Frontend:** import the repo again with root directory `frontend` (Vite is detected) and set `VITE_API_URL` to the API's URL, then redeploy so the build picks it up.
 
 The settings also accept Render's domain automatically, so the same code runs on a long-lived server host (`gunicorn config.wsgi`) if preferred.

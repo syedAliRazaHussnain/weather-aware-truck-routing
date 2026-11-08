@@ -1,0 +1,7 @@
+# Lint settings for the backend (kept out of pyproject.toml so hosts install from requirements.txt).
+line-length = 100
+target-version = "py312"
+
+[lint]
+# pyflakes, pycodestyle, import order, pyupgrade, bugbear
+select = ["F", "E", "W", "I", "UP", "B"]
