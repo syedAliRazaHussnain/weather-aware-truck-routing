@@ -38,6 +38,20 @@ def test_render_domain_is_allowed_without_typing_it():
     assert "weather-routing-api.onrender.com" in loaded["hosts"]
 
 
+def test_vercel_domains_are_allowed_without_typing_them():
+    """On Vercel, the production, branch and per-deploy domains are allowed automatically."""
+    loaded = _load_settings(
+        {
+            "VERCEL_PROJECT_PRODUCTION_URL": "api.vercel.app",
+            "VERCEL_BRANCH_URL": "api-git-main.vercel.app",
+            "VERCEL_URL": "api-abc123.vercel.app",
+        }
+    )
+    assert {"api.vercel.app", "api-git-main.vercel.app", "api-abc123.vercel.app"} <= set(
+        loaded["hosts"]
+    )
+
+
 def test_debug_is_off_unless_asked_for():
     """Production runs with DEBUG off when DJANGO_DEBUG isn't set."""
     assert _load_settings({})["debug"] is False
