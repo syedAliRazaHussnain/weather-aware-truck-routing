@@ -28,6 +28,11 @@ input {
   color: inherit;
 }
 
+/* 16px inputs: iOS Safari zooms the whole page into any smaller input on focus. */
+input {
+  font-size: 16px;
+}
+
 /* --- Layout: panel left, map right; stacked on phones (#55) ------------------ */
 
 .layout {
@@ -52,6 +57,21 @@ input {
 }
 
 @media (max-width: 800px) {
+  .map-overlay {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    gap: 6px;
+  }
+  .hour-slider {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  .legend {
+    font-size: 0.7rem;
+    padding: 5px 8px;
+    gap: 2px 8px;
+  }
   .layout {
     grid-template-columns: 1fr;
     grid-template-rows: 55vh auto;

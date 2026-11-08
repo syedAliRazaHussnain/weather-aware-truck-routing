@@ -207,7 +207,7 @@ def test_reason_when_only_time_decided():
     """Same risk numbers: the quicker one wins and the reason says so."""
     a = summary("A", 10, severe=25)
     b = summary("B", 11, severe=25)
-    assert reason(rank([a, b])) == "Same risk as Route B, and quicker. Fastest route."
+    assert reason(rank([a, b])) == "Same risk as Route B, and it's the fastest route."
 
 
 def test_reason_with_a_single_route():

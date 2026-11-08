@@ -56,7 +56,7 @@ def test_a_calm_trip_gives_three_routes_named_fastest_first():
     assert [r["id"] for r in result["routes"]] == ["A", "B", "C"]
     assert durations == sorted(durations)
     assert result["recommended"] == "A"
-    assert result["reason"] == "Same risk as Route B, and quicker. Fastest route."
+    assert result["reason"] == "Same risk as Route B, and it's the fastest route."
     assert result["weather_status"] == "ok"
 
 
@@ -208,6 +208,7 @@ def test_a_trip_over_the_routing_limit_suggests_two_legs():
     problem = problem_from(ors=FakeOrs(error=TripTooLong("over 6,000 km")))
     assert problem.code == "trip_too_long"
     assert "two legs" in problem.actions[0]["label"]
+    assert "crosses the sea" in problem.message
 
 
 def test_a_busy_routing_service_offers_a_retry_countdown():

@@ -1,4 +1,5 @@
 // The recommendation, its reason, warnings and notes, and a card per route.
+import { useEffect, useRef } from 'react'
 import type { Action, PlanResult } from '../api/types'
 import { ActionButton } from './ProblemPanel'
 import { RouteCard } from './RouteCard'
@@ -12,8 +13,17 @@ interface Props {
 
 export function ResultsPanel({ plan, selectedId, onSelect, onAction }: Props) {
   const routes = [...plan.routes].sort((a, b) => (a.rank ?? 9) - (b.rank ?? 9))
+  const section = useRef<HTMLElement>(null)
+
+  // On a phone the results sit below the form, so bring a new plan into view.
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 800px)').matches) {
+      section.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [plan])
+
   return (
-    <section className="results" aria-label="Trip results">
+    <section className="results" aria-label="Trip results" ref={section}>
       {plan.recommended && (
         <div className="recommendation">
           <h2>Take Route {plan.recommended}</h2>

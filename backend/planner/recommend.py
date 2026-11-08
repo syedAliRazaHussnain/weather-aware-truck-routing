@@ -102,6 +102,8 @@ def reason(ranked: list[RouteSummary]) -> str:
     else:
         why = _deciding_rule(best, ranked[1])
     extra = best.seconds - fastest.seconds
+    if why.startswith("Same risk as") and fastest is best:
+        return f"Same risk as Route {ranked[1].label}, and it's the fastest route."
     when = "fastest route" if extra < 60 else f"{format_duration(extra)} slower than the fastest"
     return f"{why}. {when[0].upper()}{when[1:]}."
 
