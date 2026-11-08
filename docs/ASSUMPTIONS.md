@@ -144,14 +144,14 @@ The app treats a failure as a problem the driver and the app solve together, not
 |---|---|---|
 | Location can't be found (permission off, weak GPS) | "We couldn't get your location." | Type a nearby town or landmark · Turn on location for this site · Try again in a moment (outdoors helps) |
 | Picked point has no truck road nearby | "There's no truck road near this point." | [Use Rawlins, WY (3 mi away)] (nearest place, via ORS reverse geocoding) · Pick another point |
-| Trip over the free routing limit, ~3,700 mi (#61) | "This trip is too long for the free routing service." | Plan it in two legs: pick a city about halfway as the destination |
+| Trip over the free routing limit, ~3,700 mi, or across the sea (#61) | "This trip is too long for the free routing service, or it crosses the sea." | Pick a closer destination, or plan it in two legs |
 | No truck-legal route between the two places | "We couldn't find a truck route between these places." | Check the load weight · Try a nearby destination |
 | Fewer than 3 distinct routes | Not an error. Note: "Only 2 different routes exist for this trip." | — |
 | Too many checkpoints (#37) | "This trip is too long for 10-mile checkpoints on the free weather service." | [Use 25 mi] · [Use 50 mi] |
 | Departure in the past (#10) | "That departure time has passed." | [Leave now] |
 | Departure beyond the 16-day forecast (#11) | "Forecasts only reach 16 days ahead." | [Plan for the latest possible date] |
 | Weather service down or slow (#39) | Routes shown in grey: "Weather is unavailable right now, so we can't rate these routes yet." | [Try again] |
-| Weather service busy (rate limit) | "The weather service is busy." | Auto-retry countdown (60 s) · [Try now] |
+| Weather service busy (rate limit) | "The weather service is busy." | One automatic retry after a 60 s countdown, then [Try again] by hand |
 | Routing service down | "We couldn't reach the routing service." | [Try again] (form stays filled) |
 | Every route has No Travel (#45) | Least-bad route shown with a warning. | "If you can wait or are resting, check again later." [Check tomorrow 6 AM] |
 | Recommended route has Severe stretches | Highlighted on the map with times and places. | Extra 7: [Find a safer departure time] |

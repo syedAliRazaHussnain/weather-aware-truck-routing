@@ -1,6 +1,6 @@
 // Every failure becomes a plain Problem with actions (#59).
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiProblem, OFFLINE, UNEXPECTED, planTrip, searchPlaces } from './client'
+import { ApiProblem, OFFLINE, UNEXPECTED, UNREACHABLE, planTrip, searchPlaces } from './client'
 import type { PlanRequest } from './types'
 
 const TRIP: PlanRequest = {
@@ -54,9 +54,16 @@ describe('api client', () => {
     expect(caught.status).toBe(400)
   })
 
-  it('turns no network into the offline problem', async () => {
+  it('says "offline" only when the browser really is offline', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    vi.stubGlobal('navigator', { onLine: false })
     expect((await problemFrom(planTrip(TRIP))).problem).toEqual(OFFLINE)
+  })
+
+  it("says the server can't be reached when the browser is online", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    vi.stubGlobal('navigator', { onLine: true })
+    expect((await problemFrom(planTrip(TRIP))).problem).toEqual(UNREACHABLE)
   })
 
   it('turns a non-JSON error page into a friendly server error', async () => {

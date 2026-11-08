@@ -4,7 +4,7 @@
 import { type ExpressionSpecification, type FilterSpecification, setWorkerUrl } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, {
   Layer,
   type MapLayerMouseEvent,
@@ -15,6 +15,7 @@ import Map, {
   Source,
 } from 'react-map-gl/maplibre'
 import type { Checkpoint, Place, PlanResult, RouteResult } from '../api/types'
+import { MAP_STYLE, START_VIEW } from '../lib/map'
 import { levelColor, levelColorExpression } from '../lib/risk'
 import { bounds } from '../lib/routes'
 import { formatClock, zoneAbbreviation } from '../lib/time'
@@ -23,8 +24,6 @@ import { formatClock, zoneAbbreviation } from '../lib/time'
 // it at the worker explicitly so it loads in development and in the built app.
 setWorkerUrl(workerUrl)
 
-const STYLE = 'https://tiles.openfreemap.org/styles/positron' // #56: light, free, no key
-const START_VIEW = { longitude: -98.5, latitude: 39.5, zoom: 3.5 }
 
 interface Props {
   plan: PlanResult | null
@@ -41,6 +40,7 @@ interface Props {
 export function MapView(props: Props) {
   const { plan, origin, destination, selectedId, hour, openCheckpoint } = props
   const map = useRef<MapRef>(null)
+  const [hovering, setHovering] = useState(false)
 
   const selected = plan?.routes.find((r) => r.id === selectedId) ?? null
   const others = useMemo(() => plan?.routes.filter((r) => r.id !== selectedId) ?? [], [plan, selectedId])
@@ -69,27 +69,39 @@ export function MapView(props: Props) {
         [west, south],
         [east, north],
       ],
-      { padding: 60, duration: 800 },
+      // Extra room at the bottom for the slider and legend over the map.
+      { padding: { top: 50, left: 50, right: 50, bottom: 170 }, duration: 800 },
     )
   }, [plan])
 
-  // Before a plan, show the chosen places.
+  // Before a plan, show the chosen places: both of them once both are picked.
   useEffect(() => {
     if (plan) return
+    if (origin && destination) {
+      map.current?.fitBounds(
+        [
+          [Math.min(origin.lon, destination.lon), Math.min(origin.lat, destination.lat)],
+          [Math.max(origin.lon, destination.lon), Math.max(origin.lat, destination.lat)],
+        ],
+        { padding: 80, duration: 800, maxZoom: 9 },
+      )
+      return
+    }
     const place = destination ?? origin
     if (place) map.current?.flyTo({ center: [place.lon, place.lat], zoom: 6, duration: 800 })
   }, [origin, destination, plan])
 
   function onClick(event: MapLayerMouseEvent) {
-    const feature = event.features?.[0]
-    if (!feature) {
+    const features = event.features ?? []
+    // A checkpoint wins over the route line under it, so dots are easy to click.
+    const checkpoint = features.find((f) => f.layer.id === 'checkpoints-hit')
+    const line = features.find((f) => /^route-(line|hit)-/.test(f.layer.id))
+    if (checkpoint) {
+      props.onOpenCheckpoint(Number(checkpoint.properties.index))
+    } else if (line) {
+      props.onSelectRoute(line.layer.id.slice(-1) as RouteResult['id'])
+    } else {
       props.onOpenCheckpoint(null)
-      return
-    }
-    if (feature.layer.id === 'checkpoints') {
-      props.onOpenCheckpoint(Number(feature.properties.index))
-    } else if (feature.layer.id.startsWith('route-line-')) {
-      props.onSelectRoute(feature.layer.id.slice('route-line-'.length) as RouteResult['id'])
     }
   }
 
@@ -99,16 +111,21 @@ export function MapView(props: Props) {
     <Map
       ref={map}
       initialViewState={START_VIEW}
-      mapStyle={STYLE}
+      mapStyle={MAP_STYLE}
       style={{ width: '100%', height: '100%' }}
       attributionControl={{ compact: true }}
-      interactiveLayerIds={['checkpoints', ...(plan?.routes.map((r) => `route-line-${r.id}`) ?? [])]}
+      interactiveLayerIds={[
+        'checkpoints-hit',
+        ...(plan?.routes.flatMap((r) => [`route-line-${r.id}`, `route-hit-${r.id}`]) ?? []),
+      ]}
       onClick={onClick}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
       onMoveEnd={(event) => {
         const center = event.target.getCenter()
         props.onCenter({ lat: center.lat, lon: center.lng })
       }}
-      cursor="auto"
+      cursor={hovering ? 'pointer' : 'grab'}
     >
       <NavigationControl position="top-right" showCompass={false} />
 
@@ -129,6 +146,12 @@ export function MapView(props: Props) {
             type="line"
             layout={{ 'line-cap': 'round', 'line-join': 'round' }}
             paint={{ 'line-color': '#64748b', 'line-width': 4, 'line-opacity': 0.55 }}
+          />
+          {/* A wide invisible line, so a thin faded route is easy to click. */}
+          <Layer
+            id={`route-hit-${route.id}`}
+            type="line"
+            paint={{ 'line-color': '#000', 'line-width': 16, 'line-opacity': 0 }}
           />
         </Source>
       ))}
@@ -161,6 +184,11 @@ export function MapView(props: Props) {
               'circle-stroke-color': '#1f2937',
               'circle-stroke-width': 1.5,
             }}
+          />
+          <Layer
+            id="checkpoints-hit"
+            type="circle"
+            paint={{ 'circle-radius': 12, 'circle-color': '#000', 'circle-opacity': 0 }}
           />
           <Layer
             id="checkpoints-risky"
