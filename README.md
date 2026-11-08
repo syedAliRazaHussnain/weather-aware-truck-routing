@@ -3,14 +3,12 @@
 Plan a truck trip and see up to three routes, each checked for wind, rain and snow at every checkpoint along the way, with the forecast for the hour the truck will actually be there. The app recommends the route with the least weather risk, in the order the spec asks for, and explains why.
 
 <!-- Placeholders to fill before submitting (search for TODO_):
-  TODO_LIVE_APP_URL  the Vercel URL
-  TODO_API_URL       the API's Vercel URL
   TODO_LOOM_URL      the Loom walkthrough
   TODO_SCREENSHOT    add docs/screenshot.png (Denver to Salt Lake City with the heatmap), then uncomment the image below
 -->
 
-- **Live app:** [TODO_LIVE_APP_URL](TODO_LIVE_APP_URL)
-- **API health check:** [TODO_API_URL/api/health](TODO_API_URL/api/health) (the first request after a quiet spell starts the server, so it can take a few extra seconds)
+- **Live app:** https://weather-aware-truck-routing-five-black.vercel.app
+- **API health check:** https://weather-routing-api.vercel.app/api/health (the first request after a quiet spell starts the server, so it can take a few extra seconds)
 - **Walkthrough (Loom):** [TODO_LOOM_URL](TODO_LOOM_URL)
 
 <!-- TODO_SCREENSHOT:
