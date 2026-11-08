@@ -26,7 +26,7 @@ flowchart TB
 
     tiles["🗺️ OpenFreeMap<br/>map tiles"]
 
-    subgraph server["⚙️ Our server (Render)"]
+    subgraph server["⚙️ Our server (Vercel function)"]
         direction LR
         api["Django API<br/>POST /api/plan<br/>GET /api/places<br/>GET /api/health"]
         cache[("🗄️ Weather cache<br/>in memory, 1 hour")]

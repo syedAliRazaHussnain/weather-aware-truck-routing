@@ -4,13 +4,13 @@ Plan a truck trip and see up to three routes, each checked for wind, rain and sn
 
 <!-- Placeholders to fill before submitting (search for TODO_):
   TODO_LIVE_APP_URL  the Vercel URL
-  TODO_API_URL       the Render URL
+  TODO_API_URL       the API's Vercel URL
   TODO_LOOM_URL      the Loom walkthrough
   TODO_SCREENSHOT    add docs/screenshot.png (Denver to Salt Lake City with the heatmap), then uncomment the image below
 -->
 
 - **Live app:** [TODO_LIVE_APP_URL](TODO_LIVE_APP_URL)
-- **API health check:** [TODO_API_URL/api/health](TODO_API_URL/api/health) (the free server sleeps when idle; the first request can take up to a minute)
+- **API health check:** [TODO_API_URL/api/health](TODO_API_URL/api/health) (the first request after a quiet spell starts the server, so it can take a few extra seconds)
 - **Walkthrough (Loom):** [TODO_LOOM_URL](TODO_LOOM_URL)
 
 <!-- TODO_SCREENSHOT:
@@ -32,7 +32,7 @@ Plan a truck trip and see up to three routes, each checked for wind, rain and sn
 ```mermaid
 flowchart LR
     driver(["Driver"]) -->|"trip details"| ui["React app<br/>(Vercel)"]
-    ui -->|"POST /api/plan"| api["Django API<br/>(Render)"]
+    ui -->|"POST /api/plan"| api["Django API<br/>(Vercel function)"]
     api -->|"truck routes,<br/>place search"| ors["OpenRouteService"]
     api -->|"hourly forecasts,<br/>batched and cached"| om["Open-Meteo"]
     api -->|"routes, risk, heatmap,<br/>recommendation"| ui
@@ -83,14 +83,18 @@ Open http://localhost:5173.
 | `ORS_API_KEY` | backend | OpenRouteService key. Never sent to the browser. |
 | `DJANGO_SECRET_KEY` | backend | Required unless `DJANGO_DEBUG=true` |
 | `DJANGO_DEBUG` | backend | `true` for local development only |
-| `DJANGO_ALLOWED_HOSTS` | backend | Extra comma-separated hostnames. On Render the service's own domain is added automatically. |
+| `DJANGO_ALLOWED_HOSTS` | backend | Extra comma-separated hostnames. On Vercel (and Render) the service's own domains are added automatically. |
 | `CORS_ALLOWED_ORIGINS` | backend | The frontend's URL, e.g. the Vercel domain |
 | `VITE_API_URL` | frontend | The backend's URL in production; leave empty locally |
 
 ### Deploying
 
-- **Backend on Render:** create a Blueprint from this repo; it reads [`render.yaml`](render.yaml) (free plan, `backend/` folder, gunicorn, health check on `/api/health`, deploys from `main` only after the tests pass). Render asks for `ORS_API_KEY` and `CORS_ALLOWED_ORIGINS` (the Vercel URL) and generates `DJANGO_SECRET_KEY` itself.
-- **Frontend on Vercel:** import the repo with root directory `frontend` (Vite is detected) and set `VITE_API_URL` to the Render URL.
+Both halves run on Vercel's free (Hobby) plan, as two projects from this one repo:
+
+- **API:** import the repo with root directory `backend`. Vercel detects Django and runs the WSGI app (`config.wsgi:application`, set in `pyproject.toml`) as a Python function on Python 3.14 (`backend/.python-version`). Set `ORS_API_KEY`, `DJANGO_SECRET_KEY` (any long random string) and `CORS_ALLOWED_ORIGINS` (the frontend's URL). The API's own Vercel domains are allowed automatically.
+- **Frontend:** import the repo again with root directory `frontend` (Vite is detected) and set `VITE_API_URL` to the API's URL, then redeploy so the build picks it up.
+
+The settings also accept Render's domain automatically, so the same code runs on a long-lived server host (`gunicorn config.wsgi`) if preferred.
 
 ## Tests
 
@@ -107,7 +111,7 @@ Both run in GitHub Actions on every pull request. The risk rules are tested at e
 |---|---|
 | `POST /api/plan` | Plan a trip. Body: `origin` and `destination` (`lat`, `lon`, `label`), optional `departure` (origin's local time, `2026-11-08T08:00`; omitted means now), `load_lb`, `interval_mi` (10, 25 or 50). |
 | `GET /api/places?q=&lat=&lon=` | Place suggestions, ranked near the given point |
-| `GET /api/health` | Lets the page wake the free server as soon as it opens |
+| `GET /api/health` | Lets the page start the server as soon as it opens |
 
 Every error, including bad input and unexpected crashes, has the same shape: `{"error", "message", "actions"}`.
 
@@ -213,7 +217,7 @@ Every place where the spec is silent or ambiguous, and what the app does. Code c
 | 35 | Weather licence | Open-Meteo's free tier is for non-commercial use. Fine for this assessment; a production version would need their paid API key. | decided |
 | 36 | Weather grid | Nearby points share one forecast by rounding coordinates to a grid. The app uses the finest grid that fits the weather budget: 0.05° (about 3.5 mi) first, which helps where the best models are 2–3 km apart (US, Europe); if the plan would go over budget, 0.1° (about 7 mi). No invented trip-length threshold. | decided |
 | 37 | Call budget | Open-Meteo charges 1 call per location (verified: a 100-location request returned `X-RateLimit-Cost: 100`). Free limits: 600/min, 5,000/hour, 10,000/day. One plan may use at most 500 locations (100 spare for other users in the same minute). Over budget, in this order: heatmap squares get bigger, then the weather grid goes from 0.05° to 0.1° (#36); checkpoints are never dropped. If the checkpoints alone still need more than 500, the driver is asked to pick a larger interval. See "Weather call budget" below. | decided |
-| 38 | Cache | Forecasts are kept in server memory for 1 hour, keyed by cell and time window. Re-planning the same trip (e.g. a different load) costs no weather calls. The cache is lost when the server restarts. | decided |
+| 38 | Cache | Forecasts are kept in server memory for 1 hour, keyed by cell and time window. Re-planning the same trip (e.g. a different load) costs no weather calls. The API runs as a serverless function: a warm instance is reused between requests, so the cache usually survives a re-plan, but it's lost when the instance stops or a request lands on a fresh one. A shared cache (e.g. Redis) would fix that in production. | decided |
 | 39 | Missing weather | Missing weather never counts as Low. A timeout or server error is retried once. If weather still can't be fetched, the routes are still shown (distance, time, map) but greyed as "weather unknown", with no ranking and a Try again button. A rate-limit error is not retried by the server; the UI offers a retry with a short countdown. See "When something goes wrong". | decided |
 
 ### Ranking
@@ -249,7 +253,7 @@ Every place where the spec is silent or ambiguous, and what the app does. Code c
 | 55 | Screen sizes | Built desktop-first (reviewers use laptops), but usable on a phone: on narrow screens the map sits above the panel, results scroll into view after planning, and picking a route scrolls back to the map. | decided |
 | 56 | Base map | A light, low-contrast base map (OpenFreeMap "Positron", free, no key) so the risk colours stand out. | decided |
 | 57 | Selected route | The recommended route is selected by default. Other routes are drawn thinner and faded; clicking a route card or line selects it. The heatmap sits under the routes. | decided |
-| 58 | Free-hosting cold start | The free back-end host sleeps when idle and can take ~30–60 s to wake. The page pings `/api/health` as soon as it opens, so the server wakes while the driver fills the form; if a plan is still slow, the UI says "Waking up the server…" instead of looking frozen. | decided |
+| 58 | Free-hosting cold start | The API runs on Vercel's free plan as a serverless function, so the first request after a quiet spell starts a fresh instance (a few seconds). The page pings `/api/health` as soon as it opens, so the server starts while the driver fills the form; if a plan is still slow, the UI says the server may be starting up instead of looking frozen. | decided |
 
 ### Failures
 
@@ -288,7 +292,7 @@ The app treats a failure as a problem the driver and the app solve together, not
 | Every route has No Travel (#45) | Least-bad route shown with a warning. | "If you can wait or are resting, check again later." [Check tomorrow 6 AM] |
 | Recommended route has Severe stretches | Highlighted on the map with times and places. | Extra 7: [Find a safer departure time] |
 | Browser is offline | "You're offline. Your trip details are kept." | [Try again] when back online |
-| Server waking up (#58) | "Waking up the server, this takes up to a minute the first time." | Nothing to do; it continues by itself |
+| Server starting up (#58) | "Still working: the server may be starting up, so the first plan can take a little longer." | Nothing to do; it continues by itself |
 | Anything unexpected (server bug) | "Something went wrong on our side. Your trip details are kept." | [Try again] |
 
 **How it's built:** every error from the server carries a plain `message` and a list of `actions`, e.g. `{"type": "set_interval", "value": 25, "label": "Use 25 mi"}`. The UI turns each action into a button. Location problems happen in the browser and are handled there.
@@ -330,7 +334,7 @@ The spec says to prioritize correctness and clarity over extra features, so thes
 - **No live traffic and no rest stops** in ETAs. Long trips should be re-planned after each rest.
 - **Truck restrictions** (weight, height) come from OpenStreetMap data, whose coverage varies by region.
 - **Forecasts** more than about three days out are much less reliable; the app says so.
-- **Cold starts:** the free backend host sleeps when idle and can take up to a minute to wake; the page wakes it on load and says so if a plan is slow.
+- **Cold starts:** the API is a serverless function on a free plan, so the first request after a quiet spell is slower and starts with an empty weather cache; the page starts it on load and says so if a plan is slow.
 
 ## Use of AI
 

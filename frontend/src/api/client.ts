@@ -3,7 +3,7 @@
 
 import type { Place, PlanRequest, PlanResult, Problem } from './types'
 
-/** Empty in development (Vite proxies /api); the Render URL in production. */
+/** Empty in development (Vite proxies /api); the API's URL in production. */
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
 /** A Problem thrown by the client, with the HTTP status when there was one. */
@@ -90,7 +90,7 @@ export function searchPlaces(
   return request<Place[]>(`/api/places?${params}`, { signal })
 }
 
-/** Wake the free server as soon as the page opens; failures are ignored (#58). */
+/** Start the free server as soon as the page opens; failures are ignored (#58). */
 export function wakeServer(): void {
   fetch(API_BASE + '/api/health').catch(() => undefined)
 }
