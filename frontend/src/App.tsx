@@ -38,7 +38,7 @@ export default function App() {
     load: useRef<HTMLInputElement>(null),
   }
 
-  useEffect(wakeServer, []) // #58: wake the free server while the driver types
+  useEffect(wakeServer, []) // #58: start the free server while the driver types
 
   // A new plan: select the recommended route (#57) and go back to departure hour.
   useEffect(() => {
@@ -96,7 +96,7 @@ export default function App() {
         />
         {loading && (
           <p className="status" role="status">
-            {slow ? 'Waking up the server, this takes up to a minute the first time…' : 'Planning your trip…'}
+            {slow ? 'Still working: the server may be starting up, so the first plan can take a little longer…' : 'Planning your trip…'}
           </p>
         )}
         {problem && (
