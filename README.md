@@ -1,21 +1,153 @@
-# Assumptions
+# Weather-Aware Truck Routing
 
-Every place where the spec is silent or ambiguous, and what this app does instead.
-This list feeds the README. All entries were agreed during design.
-Grouped in the order a trip is planned. Numbers are fixed from here on: new assumptions are added at the end, never renumbered, because code and tests cite them.
+Plan a truck trip and see up to three routes, each checked for wind, rain and snow at every checkpoint along the way, with the forecast for the hour the truck will actually be there. The app recommends the route with the least weather risk, in the order the spec asks for, and explains why.
 
-## Trip inputs
+<!-- Placeholders to fill before submitting (search for TODO_):
+  TODO_LIVE_APP_URL  the Vercel URL
+  TODO_API_URL       the Render URL
+  TODO_LOOM_URL      the Loom walkthrough
+  TODO_SCREENSHOT    add docs/screenshot.png (Denver to Salt Lake City with the heatmap), then uncomment the image below
+-->
+
+- **Live app:** [TODO_LIVE_APP_URL](TODO_LIVE_APP_URL)
+- **API health check:** [TODO_API_URL/api/health](TODO_API_URL/api/health) (the free server sleeps when idle; the first request can take up to a minute)
+- **Walkthrough (Loom):** [TODO_LOOM_URL](TODO_LOOM_URL)
+
+<!-- TODO_SCREENSHOT:
+![Denver to Salt Lake City: three routes, the recommended one coloured by risk, heatmap squares and the 0-48 h slider](docs/screenshot.png)
+-->
+
+## What it does
+
+- **Trip form:** origin and destination with place search, departure (leave now, or a local time at the origin), cargo load in lb or kg, and a weather check every 10, 25 or 50 miles.
+- **Up to three truck routes** from OpenRouteService's truck profile, using the truck's gross weight to avoid weight-restricted roads.
+- **Checkpoints** every N miles, plus the origin and destination, each with its ETA and the forecast for that hour.
+- **Risk per checkpoint** from the spec's table: the worst of wind, rain and snow, with the load rules applied to wind.
+- **Recommendation** in the spec's order: fewest Severe miles, then fewest High miles, then lowest average risk, then shortest time. Routes with any No Travel stretch go last. A one-line reason says why the winner won.
+- **Map:** routes coloured by risk, checkpoint popups (ETA, level, the condition behind it, and whether the load raised it), and a weather heatmap along the corridor with a **0-48 h slider**.
+- **Helpful failures:** every problem comes with a plain message and one-tap fixes ("Leave now", "Use 25 mi", "Use Rawlins, WY instead", "Try again"), never a bare error.
+
+## How it works
+
+```mermaid
+flowchart LR
+    driver(["Driver"]) -->|"trip details"| ui["React app<br/>(Vercel)"]
+    ui -->|"POST /api/plan"| api["Django API<br/>(Render)"]
+    api -->|"truck routes,<br/>place search"| ors["OpenRouteService"]
+    api -->|"hourly forecasts,<br/>batched and cached"| om["Open-Meteo"]
+    api -->|"routes, risk, heatmap,<br/>recommendation"| ui
+    ui -->|"map tiles"| tiles["OpenFreeMap"]
+```
+
+One request plans the whole trip, in eight steps (`backend/planner/service.py`):
+
+1. Check the input and the departure window; find the origin's time zone.
+2. Get up to three truck routes: ORS's own alternatives for short trips, detour points beside the midpoint for longer ones (ORS only offers alternatives under 100 km).
+3. Place checkpoints every N miles along the road and work out each ETA from ORS's step durations.
+4. Round checkpoints to a weather grid and size the heatmap so one plan stays within 500 weather locations.
+5. Fetch hourly forecasts in batches of 100 locations, cached for an hour.
+6. Classify every checkpoint at its ETA, and every heatmap square for each of the 49 slider hours.
+7. Rank the routes and write the reason.
+8. Add notes and send the plan to the browser.
+
+More detail, with seven diagrams, in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Running it locally
+
+You need Python 3.12+ (developed on 3.14), Node 20+ and a free [OpenRouteService API key](https://openrouteservice.org/dev/#/signup).
+
+**Backend** (Django, port 8000):
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env          # then put your ORS key in .env
+DJANGO_DEBUG=true python manage.py runserver
+```
+
+**Frontend** (Vite, port 5173; `/api` is proxied to the backend):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173.
+
+### Environment variables
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `ORS_API_KEY` | backend | OpenRouteService key. Never sent to the browser. |
+| `DJANGO_SECRET_KEY` | backend | Required unless `DJANGO_DEBUG=true` |
+| `DJANGO_DEBUG` | backend | `true` for local development only |
+| `DJANGO_ALLOWED_HOSTS` | backend | Extra comma-separated hostnames. On Render the service's own domain is added automatically. |
+| `CORS_ALLOWED_ORIGINS` | backend | The frontend's URL, e.g. the Vercel domain |
+| `VITE_API_URL` | frontend | The backend's URL in production; leave empty locally |
+
+### Deploying
+
+- **Backend on Render:** create a Blueprint from this repo; it reads [`render.yaml`](render.yaml) (free plan, `backend/` folder, gunicorn, health check on `/api/health`, deploys from `main` only after the tests pass). Render asks for `ORS_API_KEY` and `CORS_ALLOWED_ORIGINS` (the Vercel URL) and generates `DJANGO_SECRET_KEY` itself.
+- **Frontend on Vercel:** import the repo with root directory `frontend` (Vite is detected) and set `VITE_API_URL` to the Render URL.
+
+## Tests
+
+```bash
+cd backend && ruff check . && python -m pytest          # 214 tests
+cd frontend && npm run lint && npm run typecheck && npm test && npm run build   # 39 tests
+```
+
+Both run in GitHub Actions on every pull request. The risk rules are tested at every band edge on both sides; the API clients are tested against saved real responses, so tests never use the network. A manual pass on desktop and iPhone, with every problem button checked, is written up in [docs/TESTING.md](docs/TESTING.md).
+
+## API
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/plan` | Plan a trip. Body: `origin` and `destination` (`lat`, `lon`, `label`), optional `departure` (origin's local time, `2026-11-08T08:00`; omitted means now), `load_lb`, `interval_mi` (10, 25 or 50). |
+| `GET /api/places?q=&lat=&lon=` | Place suggestions, ranked near the given point |
+| `GET /api/health` | Lets the page wake the free server as soon as it opens |
+
+Every error, including bad input and unexpected crashes, has the same shape: `{"error", "message", "actions"}`.
+
+## Project structure
+
+```
+backend/
+  config/            Django settings (from environment variables) and URLs
+  planner/
+    risk.py          the spec's risk table and load rules
+    geo.py           road miles, ETAs, checkpoints
+    routes.py        detour points and "is this route really different?"
+    recommend.py     summaries, ranking, the reason line
+    corridor.py      heatmap squares and their hourly levels
+    clients/         OpenRouteService and Open-Meteo
+    service.py       the eight plan steps and helpful problems
+    views.py         the three endpoints
+frontend/src/
+  api/               types mirroring the API, and the client
+  components/        form, map, slider, legend, results, problem panel
+  lib/               palette, times, units, form rules
+docs/                architecture diagrams and the test plan
+```
+
+## Assumptions
+
+Every place where the spec is silent or ambiguous, and what the app does. Code comments cite these numbers (for example `# #30`), so searching for a number finds the rule here, the code that implements it, and the test that proves it. Numbers are fixed: new assumptions are added at the end.
+
+### Trip inputs
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
 | 1 | Sampling interval | The spec says "sample weather every 10 / 25 / 50 miles" but doesn't list it as a user input. The app offers it as an optional toggle, default **25 mi**. | decided |
 | 2 | Load unit | The driver can enter the load in lb or kg (a small switch next to the box). kg is converted to lb (1 kg = 2.20462 lb) before any rule runs, because the spec's load rules are in lb. Loads above 150,000 lb are refused as a likely typo (an extra zero). | decided |
 | 3 | Locations | Worldwide. The risk rules use the spec's US units (mph, in/hr, lb) regardless of country. | decided |
-| 4 | Picking a location | Autocomplete (suggestions ranked near the current map view), click on the map, or "use my location" for the origin. | decided |
-| 5 | Coordinates, not text | `/api/plan` takes coordinates the driver picked (autocomplete, map click or location). It never guesses from free text: if the driver types "Springfield" and presses Plan without choosing, the suggestions open and ask them to pick one, so the trip can't silently go to the wrong Springfield. | decided |
+| 4 | Picking a location | Place search with suggestions, ranked near the current map view. Picking by clicking the map and "use my location" are planned extras, not built yet. | decided |
+| 5 | Coordinates, not text | `/api/plan` takes coordinates the driver picked from the suggestions. It never guesses from free text: if the driver types "Springfield" and presses Plan without choosing, the suggestions open and ask them to pick one, so the trip can't silently go to the wrong Springfield. | decided |
 | 6 | Snapping | Origin and destination are snapped to the nearest truck-usable road within 5 km by the routing API. If there's no road that close, the driver sees a clear message with the nearest town to try instead. | decided |
 
-## Time and time zones
+### Time and time zones
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -25,7 +157,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 10 | Departure in the past | Departure can be up to 1 hour in the past (a grace period for filling in the form) and is used as-is. Older than that, the driver sees "That departure time has passed" with a [Leave now] button, which sets the departure to the current time and plans again. The default is "Leave now": the form sends no time and the server uses the current time at the origin, because the browser may be in a different time zone from the truck. | decided |
 | 11 | Forecast window | Weather is fetched from the departure hour to whichever is later: the last ETA or departure + 48 h (the heatmap slider). That whole window must end within Open-Meteo's 16-day forecast, otherwise the user gets a clear error. | decided |
 
-## Routes
+### Routes
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -35,7 +167,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 15 | Distinct routes | A candidate is dropped if 80% or more of its length runs within 1 mi of a route already chosen (compared every 0.25 mi along both), or if it takes more than 1.5x the fastest route's time (exactly 1.5x is kept). If fewer than 3 distinct routes exist, the app shows fewer and says so. | decided |
 | 61 | Routing limits | The free routing service refuses trips over about 6,000 km (~3,700 mi), e.g. Lahore to London. The driver is told so and offered to plan it in two legs. A routing timeout or server error is retried once; a rate-limit error is not. | decided |
 
-## Distance, checkpoints and ETAs
+### Distance, checkpoints and ETAs
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -47,7 +179,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 21 | Speed within a step | Within one ORS step (e.g. "I-70 W for 84 mi"), the truck is assumed to move at that step's average speed. | decided |
 | 22 | Weather at ETA | Uses the hourly forecast nearest to the checkpoint's ETA (never more than 30 min off). Hourly matches the spec's per-hour thresholds (in/hr). | decided |
 
-## Long trips
+### Long trips
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -56,7 +188,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 25 | Checking mid-trip | The app plans trips; it doesn't track a truck on the road. After a stop (at least every morning on a multi-day trip), the driver re-plans from where they are with departure = now: typed in, or one tap on the stale-plan banner (extra 6). That refreshes routes, ETAs, weather and the recommendation for the road still ahead, and hour 0 on the slider becomes now. | decided |
 | 26 | Forecast reliability | Forecasts more than ~3 days ahead are much less reliable. The UI shows a note when departure is that far out. | decided |
 
-## Weather values
+### Weather values
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -64,7 +196,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 28 | Rain value | Open-Meteo `rain + showers` for the hour (it reports them separately), read as in/hr. | decided |
 | 29 | Snow value | Open-Meteo `snowfall` for the hour, in inches of snow (not water equivalent), read as in/hr. | decided |
 
-## Risk rules
+### Risk rules
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -74,7 +206,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 33 | Load rules | "> 30,000 lb" and "> 40,000 lb" mean strictly more than. The 30,000 lb rule only applies in the 45–54 mph band, the 40,000 lb rule only in 35–44. "lb" means the cargo load the driver enters (converted from kg if needed, #2), not the gross weight: the +35,000 lb empty truck in #13 is only sent to ORS for road weight limits. | decided |
 | 34 | Checkpoint risk | The worst of wind, rain and snow. | decided |
 
-## Weather fetching and limits
+### Weather fetching and limits
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -84,7 +216,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 38 | Cache | Forecasts are kept in server memory for 1 hour, keyed by cell and time window. Re-planning the same trip (e.g. a different load) costs no weather calls. The cache is lost when the server restarts. | decided |
 | 39 | Missing weather | Missing weather never counts as Low. A timeout or server error is retried once. If weather still can't be fetched, the routes are still shown (distance, time, map) but greyed as "weather unknown", with no ranking and a Try again button. A rate-limit error is not retried by the server; the UI offers a retry with a short countdown. See "When something goes wrong". | decided |
 
-## Ranking
+### Ranking
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -97,7 +229,7 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 46 | Why this route | The recommendation comes with a one-line reason. If it isn't the fastest route, the reason says why the fastest lost (the first rule that separated them), e.g. "0 Severe miles vs 50 on Route A. 53 min slower than the fastest." If it is the fastest, it says why the runner-up lost. | decided |
 | 60 | Route names | Routes are named A, B, C from fastest to slowest, so "Route A" always means the fastest. When two routes tie on every rule including time, they keep that order. | decided |
 
-## Heatmap
+### Heatmap
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
@@ -109,23 +241,23 @@ Grouped in the order a trip is planned. Numbers are fixed from here on: new assu
 | 52 | Square size | Squares start at 25 mi across. The checkpoints already give the precise weather on the road; the heatmap shows the bigger picture, and storms and fronts are usually much wider than 25 mi. Squares only get bigger when a long trip would go over the weather budget (#37). Example: Denver → Salt Lake City needs about 130 squares; a 2,000 mi trip with 10 mi checkpoints gets squares about 80 mi across. | decided |
 | 53 | Grid, not blur | Drawn as coloured squares (one real forecast each), not MapLibre's built-in "heatmap" layer, which shows how dense points are and blends in colours nobody forecast. To be checked on screen once the UI is up, and changed if needed (see Open design notes). | decided |
 
-## Interface
+### Interface
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
 | 54 | Colours | One palette for checkpoints, route segments, heatmap and legend. The legend always shows the level names, so colour isn't the only signal. | decided |
-| 55 | Screen sizes | Built desktop-first (reviewers use laptops), but usable on a phone: on narrow screens the panel becomes a sheet over the map. | decided |
+| 55 | Screen sizes | Built desktop-first (reviewers use laptops), but usable on a phone: on narrow screens the map sits above the panel, results scroll into view after planning, and picking a route scrolls back to the map. | decided |
 | 56 | Base map | A light, low-contrast base map (OpenFreeMap "Positron", free, no key) so the risk colours stand out. | decided |
 | 57 | Selected route | The recommended route is selected by default. Other routes are drawn thinner and faded; clicking a route card or line selects it. The heatmap sits under the routes. | decided |
 | 58 | Free-hosting cold start | The free back-end host sleeps when idle and can take ~30–60 s to wake. The page pings `/api/health` as soon as it opens, so the server wakes while the driver fills the form; if a plan is still slow, the UI says "Waking up the server…" instead of looking frozen. | decided |
 
-## Failures
+### Failures
 
 | # | Topic | Assumption | Status |
 |---|---|---|---|
 | 59 | Helpful failures | A failure is a problem the driver and the app solve together: a plain message plus one-tap fixes, never a bare error. Rules and full catalogue in "When something goes wrong" below. | decided |
 
-## When something goes wrong
+### When something goes wrong
 
 The app treats a failure as a problem the driver and the app solve together, not a rejection.
 
@@ -161,29 +293,7 @@ The app treats a failure as a problem the driver and the app solve together, not
 
 **How it's built:** every error from the server carries a plain `message` and a list of `actions`, e.g. `{"type": "set_interval", "value": 25, "label": "Use 25 mi"}`. The UI turns each action into a button. Location problems happen in the browser and are handled there.
 
-## Extras (build last, cut if time runs short)
-
-The spec says "prioritize correctness and clarity over extra features", so these come after everything required works:
-
-1. Pick a location by clicking the map
-2. "Use my location" for the origin
-3. Heatmap switch: wind / rain / snow on their own (#49)
-4. Play button that animates the heatmap slider
-5. Truck marker showing where the truck is at the slider's hour
-6. Stale-plan banner (#25): when the driver comes back to the app (tab or phone was in the background) and the plan is at least 1 h old, show "This plan is N h old. Weather and ETAs may have changed. [Update from where I am]". The button re-plans with origin = current location, departure = now, same destination, load and interval. Front end only; reuses `/api/plan`. Falls back to typing the origin if location is unavailable (extra 2).
-7. "Find a safer departure time": when the recommended route has Severe or No Travel miles, try departures 1–24 h later and suggest the first one with fewer of them. Uses the same routes and weather cells, so it costs no extra routing calls and few or no extra weather calls (the window just extends by up to 24 h).
-
-## Open design notes
-
-- **Heatmap look (#53):** start with coloured squares. If they look too blocky in the real UI, build our own smoother heatmap instead (for example, blending between square centres), clearly labelled as interpolated. Decide after seeing it on screen.
-
----
-
-## README explainers
-
-Longer explanations that go into the README next to the assumptions table.
-
-### Weather call budget (for #36–#38)
+### Weather call budget
 
 Open-Meteo's free tier charges **1 call per location** and allows **600 calls per minute** (also 5,000/hour, 10,000/day). A plan needs weather for two kinds of places:
 
@@ -203,3 +313,25 @@ So one plan may use at most **500** locations, leaving 100 spare for anyone else
 - **Checkpoints alone over budget** (e.g. 3,000 mi @ 10 mi: 301 × 3 = 903, still ~700 after merging): the app asks the driver to choose a 25 or 50 mi interval. At 25 mi the same trip needs about 121 × 3 = 363 checkpoints and fits.
 
 Checkpoints are never dropped silently: a route can't be called safe if parts of it weren't checked. A production version would use Open-Meteo's paid tier, which also covers commercial use (#35).
+
+## Not built yet
+
+The spec says to prioritize correctness and clarity over extra features, so these were left for later:
+
+1. Picking a place by clicking the map, and "use my location"
+2. A heatmap switch to show wind, rain or snow on their own (the heatmap shows combined risk)
+3. A play button that animates the slider, and a truck marker at the slider's hour
+4. A "this plan is N hours old" banner with one-tap re-planning from the current location
+5. "Find a safer departure time": try leaving 1-24 h later and suggest the first time with fewer risky miles
+
+## Limitations and what production would need
+
+- **Free tiers:** OpenRouteService (about 2,000 routes a day) and Open-Meteo (10,000 locations a day, non-commercial use only). A real product needs paid plans, its own rate limiting, and a shared cache such as Redis instead of per-process memory.
+- **No live traffic and no rest stops** in ETAs. Long trips should be re-planned after each rest.
+- **Truck restrictions** (weight, height) come from OpenStreetMap data, whose coverage varies by region.
+- **Forecasts** more than about three days out are much less reliable; the app says so.
+- **Cold starts:** the free backend host sleeps when idle and can take up to a minute to wake; the page wakes it on load and says so if a plan is slow.
+
+## Use of AI
+
+I used Claude Code (Anthropic) as a pair programmer throughout the project: to talk through the design, draft code and tests, and check API behaviour against the real services. The design decisions and trade-offs are written up in this README.

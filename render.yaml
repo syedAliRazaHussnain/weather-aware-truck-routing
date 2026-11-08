@@ -1,0 +1,29 @@
+# Render Blueprint for the Django API. Render reads this when you create a Blueprint from the repo.
+# The React app is deployed separately on Vercel (root directory: frontend).
+services:
+  - type: web
+    name: weather-routing-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    branch: main
+    # Deploy only after the GitHub Actions tests pass on main.
+    autoDeployTrigger: checksPass
+    buildCommand: pip install -r requirements.txt
+    # One process with threads, so every request shares one weather cache (#38).
+    # Plans take a few seconds and the first after a cold start longer, hence the timeout.
+    startCommand: gunicorn config.wsgi --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 8 --timeout 120
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.10
+      # Typed into the Render dashboard when the Blueprint is created; never committed.
+      - key: ORS_API_KEY
+        sync: false
+      # The Vercel URL, e.g. https://your-app.vercel.app (comma-separate several).
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      # The service's own *.onrender.com domain is allowed automatically (RENDER_EXTERNAL_HOSTNAME).
