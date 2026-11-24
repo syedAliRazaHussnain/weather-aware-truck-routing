@@ -4,6 +4,7 @@ Plan a truck trip and see up to three routes, each checked for wind, rain and sn
 
 - **Live app:** https://weather-aware-truck-routing-five-black.vercel.app
 - **API health check:** https://weather-routing-api.vercel.app/api/health (the first request after a quiet spell starts the server, so it can take a few extra seconds)
+- **Walkthrough (Loom):** https://www.loom.com/share/6fd2e8488237473999163368fa907e41
 
 ![Denver to Salt Lake City: three routes, the recommended one coloured by risk, heatmap squares and the 0-48 h slider](docs/screenshot.png)
 
